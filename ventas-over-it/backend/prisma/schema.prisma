@@ -1,0 +1,270 @@
+// Ventas Over IT — Modelo de datos
+// Ejecutar: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================================
+// AUTENTICACIÓN Y USUARIOS
+// ==========================================================
+
+enum RoleName {
+  ADMIN
+  EMPLOYEE
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        RoleName     @unique
+  description String?
+  permissions Permission[] @relation("RolePermissions")
+  users       User[]
+
+  @@map("roles")
+}
+
+// Permisos configurables (ej: "products.create", "sales.create", "stock.adjust")
+model Permission {
+  id    Int    @id @default(autoincrement())
+  key   String @unique // ej: "products.delete"
+  label String
+  roles Role[] @relation("RolePermissions")
+
+  @@map("permissions")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  isActive     Boolean  @default(true)
+  roleId       Int
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sales         Sale[]
+  stockMovements StockMovement[]
+  activityLogs  ActivityLog[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // ej: "PRODUCT_CREATED", "STOCK_ADJUSTED"
+  entity    String?  // ej: "Product"
+  entityId  Int?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+// ==========================================================
+// CATÁLOGO: PRODUCTOS Y VARIANTES
+// ==========================================================
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+
+  @@map("brands")
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Product {
+  id             Int           @id @default(autoincrement())
+  name           String
+  description    String?
+  internalCode   String        @unique // Código interno propio del producto (no de la variante)
+  purchasePrice  Decimal       @db.Decimal(10, 2)
+  salePrice      Decimal       @db.Decimal(10, 2)
+  status         ProductStatus @default(ACTIVE)
+  categoryId     Int?
+  category       Category?     @relation(fields: [categoryId], references: [id])
+  brandId        Int?
+  brand          Brand?        @relation(fields: [brandId], references: [id])
+  images         ProductImage[]
+  variants       ProductVariant[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  isPrimary Boolean @default(false)
+
+  @@map("product_images")
+}
+
+// Cada variante = una combinación específica (ej: Negro + M) con su propio stock y barcode
+model ProductVariant {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color        String?
+  size         String?
+  sku          String   @unique // Generado automáticamente, base del código de barras
+  barcode      String   @unique // Code128 (numérico o alfanumérico)
+  stock        Int      @default(0)
+  minStock     Int      @default(0) // Para alertas de stock mínimo
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stockMovements StockMovement[]
+  saleItems      SaleItem[]
+  orderItems     OrderItem[]
+
+  @@map("product_variants")
+  @@index([productId])
+}
+
+// ==========================================================
+// STOCK
+// ==========================================================
+
+enum StockMovementType {
+  ENTRY        // Ingreso de mercadería
+  ADJUSTMENT   // Ajuste manual (+/-)
+  SALE         // Descuento por venta (POS)
+  ORDER        // Descuento por pedido de tienda online
+}
+
+model StockMovement {
+  id        Int               @id @default(autoincrement())
+  variantId Int
+  variant   ProductVariant    @relation(fields: [variantId], references: [id])
+  type      StockMovementType
+  quantity  Int               // Positivo o negativo según el tipo
+  reason    String?
+  userId    Int?
+  user      User?             @relation(fields: [userId], references: [id])
+  createdAt DateTime          @default(now())
+
+  @@map("stock_movements")
+}
+
+// ==========================================================
+// VENTAS (POS)
+// ==========================================================
+
+model Sale {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  items        SaleItem[]
+  subtotal     Decimal    @db.Decimal(10, 2)
+  discount     Decimal    @db.Decimal(10, 2) @default(0)
+  total        Decimal    @db.Decimal(10, 2)
+  createdAt    DateTime   @default(now())
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id         Int            @id @default(autoincrement())
+  saleId     Int
+  sale       Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variantId  Int
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+  quantity   Int
+  unitPrice  Decimal        @db.Decimal(10, 2)
+  discount   Decimal        @db.Decimal(10, 2) @default(0)
+
+  @@map("sale_items")
+}
+
+// ==========================================================
+// TIENDA ONLINE: PEDIDOS (sin login)
+// ==========================================================
+
+enum OrderStatus {
+  PENDING
+  CONTACTED
+  CONFIRMED
+  CANCELLED
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  dni       String
+  address   String
+  city      String
+  province  String
+  phone     String
+  email     String
+  orders    Order[]
+  createdAt DateTime @default(now())
+
+  @@map("customers")
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  customerId Int
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  items      OrderItem[]
+  subtotal   Decimal     @db.Decimal(10, 2)
+  total      Decimal     @db.Decimal(10, 2)
+  status     OrderStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int            @id @default(autoincrement())
+  orderId   Int
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId Int
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  quantity  Int
+  unitPrice Decimal        @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
