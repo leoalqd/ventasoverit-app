@@ -27,11 +27,15 @@ export default function CategoryPicker({ categoryId, onChange }) {
     if (value === '__new__') {
       const name = prompt('Nombre de la nueva categoría:');
       if (!name) return;
-      const created = await createCategory(name, null);
-      await load();
-      setRootId(created.id);
-      setSubId('');
-      onChange(created.id);
+      try {
+        const created = await createCategory(name, null);
+        await load();
+        setRootId(created.id);
+        setSubId('');
+        onChange(created.id);
+      } catch (err) {
+        alert('No se pudo crear la categoría: ' + err.message);
+      }
       return;
     }
     setRootId(value);
@@ -44,10 +48,14 @@ export default function CategoryPicker({ categoryId, onChange }) {
     if (value === '__new__') {
       const name = prompt('Nombre de la nueva subcategoría:');
       if (!name) return;
-      const created = await createCategory(name, Number(rootId));
-      await load();
-      setSubId(created.id);
-      onChange(created.id);
+      try {
+        const created = await createCategory(name, Number(rootId));
+        await load();
+        setSubId(created.id);
+        onChange(created.id);
+      } catch (err) {
+        alert('No se pudo crear la subcategoría: ' + err.message);
+      }
       return;
     }
     setSubId(value);

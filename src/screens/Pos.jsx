@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, ScanLine, Plus, Minus, Trash2, Camera, X } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Camera, X, Tag } from 'lucide-react';
 import { fetchProducts } from '../lib/products';
 import { confirmSale } from '../lib/sales';
 import { useAuth } from '../lib/AuthContext';
