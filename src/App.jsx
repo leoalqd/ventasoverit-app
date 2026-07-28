@@ -6,6 +6,7 @@ import Products from './screens/Products';
 import Pos from './screens/Pos';
 import Orders from './screens/Orders';
 import SalesLog from './screens/SalesLog';
+import StoreSettings from './screens/StoreSettings';
 import Sidebar from './components/Sidebar';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         {screen === 'pos' && <Pos />}
         {screen === 'orders' && <Orders />}
         {screen === 'sales' && <SalesLog />}
+        {screen === 'settings' && <StoreSettings />}
       </main>
     </div>
   );

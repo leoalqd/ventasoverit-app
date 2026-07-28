@@ -2,7 +2,8 @@ import { supabase } from './supabaseClient';
 import { generateSku, generateBarcodeValue } from './barcode';
 
 /**
- * Sube una foto de producto al storage de Supabase y devuelve su URL pública.
+ * Sube una foto al storage de Supabase (bucket "productos") y devuelve su URL pública.
+ * Se usa tanto para fotos de producto como de variante.
  */
 export async function uploadProductImage(file) {
   const ext = file.name.split('.').pop();
@@ -16,7 +17,7 @@ export async function uploadProductImage(file) {
 export async function fetchProducts(search = '') {
   let query = supabase
     .from('products')
-    .select('*, category:categories(name), brand:brands(name), variants:product_variants(*)')
+    .select('*, category:categories(id, name, parent_id), brand:brands(name), variants:product_variants(*, images:variant_images(*)), images:product_images(*)')
     .order('created_at', { ascending: false });
 
   if (search) {
@@ -28,14 +29,16 @@ export async function fetchProducts(search = '') {
   return data;
 }
 
-export async function createProduct({ name, internalCode, purchasePrice, salePrice, variants }) {
+export async function createProduct({ name, description, internalCode, purchasePrice, salePrice, categoryId, variants }) {
   const { data: product, error } = await supabase
     .from('products')
     .insert({
       name,
+      description: description || null,
       internal_code: internalCode,
       purchase_price: purchasePrice,
       sale_price: salePrice,
+      category_id: categoryId || null,
     })
     .select()
     .single();
@@ -75,17 +78,26 @@ export async function addVariant(productId, internalCode, { color, size, stock =
   return data;
 }
 
-export async function updateProduct(productId, { name, internalCode, purchasePrice, salePrice, imageUrl }) {
+export async function updateProduct(productId, { name, description, internalCode, purchasePrice, salePrice, categoryId }) {
   const { error } = await supabase
     .from('products')
     .update({
       name,
+      description: description || null,
       internal_code: internalCode,
       purchase_price: purchasePrice,
       sale_price: salePrice,
-      image_url: imageUrl || null,
+      category_id: categoryId || null,
     })
     .eq('id', productId);
+  if (error) throw error;
+}
+
+export async function updateVariant(variantId, { color, size, stock, minStock }) {
+  const { error } = await supabase
+    .from('product_variants')
+    .update({ color, size, stock, min_stock: minStock })
+    .eq('id', variantId);
   if (error) throw error;
 }
 
@@ -122,5 +134,27 @@ export async function findVariantByBarcode(barcode) {
 
 export async function deleteProduct(productId) {
   const { error } = await supabase.from('products').update({ status: 'INACTIVE' }).eq('id', productId);
+  if (error) throw error;
+}
+
+// ---- Fotos de producto (hasta 4, opcionales) ----
+export async function addProductImage(productId, url) {
+  const { error } = await supabase.from('product_images').insert({ product_id: productId, url });
+  if (error) throw error;
+}
+
+export async function deleteProductImage(imageId) {
+  const { error } = await supabase.from('product_images').delete().eq('id', imageId);
+  if (error) throw error;
+}
+
+// ---- Fotos de variante / color (hasta 4, opcionales) ----
+export async function addVariantImage(variantId, url) {
+  const { error } = await supabase.from('variant_images').insert({ variant_id: variantId, url });
+  if (error) throw error;
+}
+
+export async function deleteVariantImage(imageId) {
+  const { error } = await supabase.from('variant_images').delete().eq('id', imageId);
   if (error) throw error;
 }

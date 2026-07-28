@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, ChevronDown, ChevronRight, Printer, X, Pencil, Trash2, ImagePlus } from 'lucide-react';
 import {
-  fetchProducts, createProduct, addVariant, updateProduct, updateVariantStock,
-  deleteVariant, deleteProduct, uploadProductImage,
+  fetchProducts, createProduct, addVariant, updateProduct, updateVariant,
+  deleteVariant, deleteProduct, addProductImage, deleteProductImage, addVariantImage, deleteVariantImage,
 } from '../lib/products';
 import ProductLabelModal from '../components/ProductLabelModal';
+import CategoryPicker from '../components/CategoryPicker';
+import PhotoPicker from '../components/PhotoPicker';
 
 function NewProductModal({ onClose, onCreated }) {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [internalCode, setInternalCode] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [salePrice, setSalePrice] = useState('');
+  const [categoryId, setCategoryId] = useState(null);
   const [variants, setVariants] = useState([{ color: '', size: '', stock: 0, minStock: 0 }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -25,10 +29,10 @@ function NewProductModal({ onClose, onCreated }) {
     setSaving(true);
     try {
       await createProduct({
-        name,
-        internalCode,
+        name, description, internalCode,
         purchasePrice: Number(purchasePrice),
         salePrice: Number(salePrice),
+        categoryId,
         variants: variants.map((v) => ({ ...v, stock: Number(v.stock), minStock: Number(v.minStock) })),
       });
       onCreated();
@@ -50,6 +54,9 @@ function NewProductModal({ onClose, onCreated }) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (ej: Remera Nike)"
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción (opcional)" rows={2}
+            className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] resize-none" />
+          <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
           <input required value={internalCode} onChange={(e) => setInternalCode(e.target.value)} placeholder="Código interno (ej: REM-NIKE-002)"
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] font-mono" />
           <div className="flex gap-3">
@@ -78,6 +85,8 @@ function NewProductModal({ onClose, onCreated }) {
             </button>
           </div>
 
+          <p className="text-xs text-[#8A8A8F]">Después de crear el producto, entrá a "Editar" para agregar fotos (hasta 4 por producto y hasta 4 por variante).</p>
+
           {error && <p className="text-[#FF6B57] text-sm">{error}</p>}
 
           <button type="submit" disabled={saving}
@@ -92,28 +101,24 @@ function NewProductModal({ onClose, onCreated }) {
 
 function EditProductModal({ product, onClose, onSaved }) {
   const [name, setName] = useState(product.name);
+  const [description, setDescription] = useState(product.description || '');
   const [internalCode, setInternalCode] = useState(product.internal_code);
   const [purchasePrice, setPurchasePrice] = useState(product.purchase_price);
   const [salePrice, setSalePrice] = useState(product.sale_price);
-  const [imageUrl, setImageUrl] = useState(product.image_url || '');
-  const [uploading, setUploading] = useState(false);
+  const [categoryId, setCategoryId] = useState(product.category?.id || null);
+  const [images, setImages] = useState(product.images || []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const handleImageChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    try {
-      const url = await uploadProductImage(file);
-      setImageUrl(url);
-    } catch (err) {
-      setError('No se pudo subir la foto.');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
+  const handleAddImage = async (url) => {
+    await addProductImage(product.id, url);
+    setImages((prev) => [...prev, { id: Date.now(), url }]);
+    onSaved();
+  };
+  const handleRemoveImage = async (id) => {
+    await deleteProductImage(id);
+    setImages((prev) => prev.filter((i) => i.id !== id));
+    onSaved();
   };
 
   const handleSubmit = async (e) => {
@@ -122,11 +127,10 @@ function EditProductModal({ product, onClose, onSaved }) {
     setError('');
     try {
       await updateProduct(product.id, {
-        name,
-        internalCode,
+        name, description, internalCode,
         purchasePrice: Number(purchasePrice),
         salePrice: Number(salePrice),
-        imageUrl,
+        categoryId,
       });
       onSaved();
       onClose();
@@ -152,19 +156,17 @@ function EditProductModal({ product, onClose, onSaved }) {
           <button onClick={onClose} className="text-[#8A8A8F] hover:text-[#F2F1ED]"><X size={18} /></button>
         </div>
 
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-16 h-16 bg-[#0B0B0C] border border-[#2A2A2E] rounded flex items-center justify-center overflow-hidden shrink-0">
-            {imageUrl ? <img src={imageUrl} alt="" className="w-full h-full object-cover" /> : <ImagePlus size={20} className="text-[#3A3A3E]" />}
-          </div>
-          <label className="text-xs bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 cursor-pointer text-[#F2F1ED] hover:border-[#E8FF4D]">
-            {uploading ? 'Subiendo...' : 'Cambiar foto'}
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} disabled={uploading} />
-          </label>
+        <div className="mb-4">
+          <span className="text-[11px] tracking-[0.2em] uppercase text-[#8A8A8F] font-mono block mb-2">Fotos (hasta 4)</span>
+          <PhotoPicker images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre"
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción (opcional)" rows={2}
+            className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] resize-none" />
+          <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
           <input required value={internalCode} onChange={(e) => setInternalCode(e.target.value)} placeholder="Código interno"
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] font-mono" />
           <div className="flex gap-3">
@@ -192,54 +194,79 @@ function EditProductModal({ product, onClose, onSaved }) {
   );
 }
 
-function EditVariantRow({ variant, onSaved }) {
+function EditVariantModal({ variant, onClose, onSaved }) {
+  const [color, setColor] = useState(variant.color || '');
+  const [size, setSize] = useState(variant.size || '');
   const [stock, setStock] = useState(variant.stock);
-  const [editing, setEditing] = useState(false);
+  const [minStock, setMinStock] = useState(variant.min_stock);
+  const [images, setImages] = useState(variant.images || []);
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const handleAddImage = async (url) => {
+    await addVariantImage(variant.id, url);
+    setImages((prev) => [...prev, { id: Date.now(), url }]);
+  };
+  const handleRemoveImage = async (id) => {
+    await deleteVariantImage(id);
+    setImages((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setSaving(true);
-    await updateVariantStock(variant.id, Number(stock));
+    await updateVariant(variant.id, { color, size, stock: Number(stock), minStock: Number(minStock) });
     setSaving(false);
-    setEditing(false);
     onSaved();
+    onClose();
   };
 
   const handleDelete = async () => {
     if (!confirm(`¿Eliminar la variante ${variant.color} / ${variant.size}?`)) return;
     await deleteVariant(variant.id);
     onSaved();
+    onClose();
   };
 
   return (
-    <tr className="border-t border-[#2A2A2E]">
-      <td className="py-2.5 text-[#F2F1ED]">{variant.color} · {variant.size}</td>
-      <td className="py-2.5 font-mono text-xs text-[#8A8A8F]">{variant.sku}</td>
-      <td className="py-2.5 text-right">
-        {editing ? (
-          <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} autoFocus
-            className="w-16 bg-[#0B0B0C] border border-[#E8FF4D] rounded px-1.5 py-0.5 text-sm text-[#F2F1ED] text-right outline-none" />
-        ) : (
-          <span className={`font-mono text-sm font-semibold ${variant.stock <= variant.min_stock ? 'text-[#FF6B57]' : 'text-[#F2F1ED]'}`}>
-            {variant.stock}
-          </span>
-        )}
-      </td>
-      <td className="py-2.5 text-right whitespace-nowrap">
-        {editing ? (
-          <button onClick={handleSave} disabled={saving} className="text-[#E8FF4D] text-xs font-semibold mr-2">
-            {saving ? '...' : 'Guardar'}
-          </button>
-        ) : (
-          <button onClick={() => setEditing(true)} className="text-[#8A8A8F] hover:text-[#E8FF4D] mr-2" title="Editar stock">
-            <Pencil size={14} />
-          </button>
-        )}
-        <button onClick={handleDelete} className="text-[#8A8A8F] hover:text-[#FF6B57] mr-2" title="Eliminar variante">
-          <Trash2 size={14} />
-        </button>
-      </td>
-    </tr>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+      <div className="bg-[#17171A] border border-[#2A2A2E] rounded-lg p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg text-[#F2F1ED]">Editar variante</h3>
+          <button onClick={onClose} className="text-[#8A8A8F] hover:text-[#F2F1ED]"><X size={16} /></button>
+        </div>
+
+        <div className="mb-4">
+          <span className="text-[11px] tracking-[0.2em] uppercase text-[#8A8A8F] font-mono block mb-2">Fotos de este color (hasta 4)</span>
+          <PhotoPicker images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color"
+              className="flex-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+            <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Talle"
+              className="w-20 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+          </div>
+          <div className="flex gap-2">
+            <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Stock"
+              className="flex-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+            <input type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="Stock mínimo"
+              className="flex-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-[#E8FF4D] text-[#0B0B0C] font-semibold text-sm rounded py-2.5 disabled:opacity-50">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button type="button" onClick={handleDelete}
+              className="bg-[#2A1414] border border-[#FF6B57]/40 text-[#FF6B57] text-sm rounded px-3 py-2.5">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -284,6 +311,7 @@ export default function Products() {
   const [query, setQuery] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingVariant, setEditingVariant] = useState(null);
   const [labelFor, setLabelFor] = useState(null);
 
   const load = () => {
@@ -324,11 +352,11 @@ export default function Products() {
                 <button onClick={() => setExpanded(expanded === p.id ? null : p.id)} className="flex items-center gap-4 flex-1 min-w-0 text-left">
                   {expanded === p.id ? <ChevronDown size={16} className="text-[#8A8A8F] shrink-0" /> : <ChevronRight size={16} className="text-[#8A8A8F] shrink-0" />}
                   <div className="w-10 h-10 bg-[#0B0B0C] border border-[#2A2A2E] rounded overflow-hidden shrink-0 flex items-center justify-center">
-                    {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <ImagePlus size={14} className="text-[#3A3A3E]" />}
+                    {p.images?.[0]?.url ? <img src={p.images[0].url} alt="" className="w-full h-full object-cover" /> : <ImagePlus size={14} className="text-[#3A3A3E]" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[#F2F1ED] font-medium truncate">{p.name}</div>
-                    <div className="text-xs text-[#8A8A8F] font-mono">{p.internal_code}</div>
+                    <div className="text-xs text-[#8A8A8F] font-mono">{p.internal_code} {p.category && `· ${p.category.name}`}</div>
                   </div>
                 </button>
                 <div className="text-right shrink-0">
@@ -341,6 +369,7 @@ export default function Products() {
               </div>
               {expanded === p.id && (
                 <div className="border-t border-[#2A2A2E] px-4 pb-4">
+                  {p.description && <p className="text-xs text-[#8A8A8F] mt-3">{p.description}</p>}
                   <table className="w-full text-sm mt-3">
                     <thead>
                       <tr className="text-[11px] tracking-[0.15em] uppercase text-[#8A8A8F] font-mono">
@@ -352,21 +381,25 @@ export default function Products() {
                     </thead>
                     <tbody>
                       {p.variants?.map((v) => (
-                        <EditVariantRow key={v.id} variant={v} onSaved={load} />
+                        <tr key={v.id} className="border-t border-[#2A2A2E]">
+                          <td className="py-2.5 text-[#F2F1ED]">{v.color} · {v.size}</td>
+                          <td className="py-2.5 font-mono text-xs text-[#8A8A8F]">{v.sku}</td>
+                          <td className="py-2.5 text-right">
+                            <span className={`font-mono text-sm font-semibold ${v.stock <= v.min_stock ? 'text-[#FF6B57]' : 'text-[#F2F1ED]'}`}>{v.stock}</span>
+                          </td>
+                          <td className="py-2.5 text-right whitespace-nowrap">
+                            <button onClick={() => setEditingVariant(v)} className="text-[#8A8A8F] hover:text-[#E8FF4D] mr-2" title="Editar variante">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => setLabelFor({ variant: v, product: p })} className="text-[#8A8A8F] hover:text-[#E8FF4D]" title="Etiqueta">
+                              <Printer size={14} />
+                            </button>
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
                   <AddVariantRow product={p} onSaved={load} />
-                  {p.variants?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {p.variants.map((v) => (
-                        <button key={v.id} onClick={() => setLabelFor({ variant: v, product: p })}
-                          className="text-[10px] bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2 py-1 text-[#8A8A8F] hover:border-[#E8FF4D] hover:text-[#E8FF4D] flex items-center gap-1">
-                          <Printer size={10} /> Etiqueta {v.color} {v.size}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -376,6 +409,7 @@ export default function Products() {
 
       {showNew && <NewProductModal onClose={() => setShowNew(false)} onCreated={load} />}
       {editingProduct && <EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSaved={load} />}
+      {editingVariant && <EditVariantModal variant={editingVariant} onClose={() => setEditingVariant(null)} onSaved={load} />}
       {labelFor && <ProductLabelModal variant={labelFor.variant} product={labelFor.product} onClose={() => setLabelFor(null)} />}
     </div>
   );

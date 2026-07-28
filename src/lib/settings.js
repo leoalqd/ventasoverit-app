@@ -15,6 +15,7 @@ export async function saveStoreSettings(settings) {
       sender_city: settings.senderCity,
       sender_province: settings.senderProvince,
       sender_phone: settings.senderPhone,
+      whatsapp_number: settings.whatsappNumber,
       updated_at: new Date().toISOString(),
     })
     .eq('id', 1);

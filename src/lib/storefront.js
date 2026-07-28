@@ -30,6 +30,7 @@ export async function createOrder(customerData, cart) {
       address: customerData.address,
       city: customerData.city,
       province: customerData.province,
+      postal_code: customerData.postalCode,
       phone: customerData.phone,
       email: customerData.email,
     })

@@ -25,8 +25,21 @@ export default function SalesLog() {
                 <div className="text-sm text-[#F2F1ED]">
                   {new Date(s.created_at).toLocaleDateString('es-AR')} · {new Date(s.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                 </div>
-                <div className="font-mono text-sm text-[#E8FF4D] font-semibold">${Number(s.total).toLocaleString('es-AR')}</div>
+                <div className="text-right">
+                  {s.discount > 0 && (
+                    <div className="text-[10px] text-[#FF6B57]">
+                      Desc. {s.discount_type === 'PERCENT' ? `${(s.discount / s.subtotal * 100).toFixed(0)}%` : `$${Number(s.discount).toLocaleString('es-AR')}`}
+                    </div>
+                  )}
+                  <div className="font-mono text-sm text-[#E8FF4D] font-semibold">${Number(s.total).toLocaleString('es-AR')}</div>
+                </div>
               </div>
+
+              {s.payment_method && (
+                <div className="text-xs text-[#8A8A8F] mb-1">
+                  Pago: {{ EFECTIVO: 'Efectivo', TARJETA: 'Tarjeta', TRANSFERENCIA: 'Transferencia' }[s.payment_method]}
+                </div>
+              )}
 
               {(s.customer_name || s.customer_dni || s.customer_phone) && (
                 <div className="text-xs text-[#8A8A8F] mb-2">

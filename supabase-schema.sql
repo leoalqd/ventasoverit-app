@@ -14,7 +14,9 @@ create table if not exists profiles (
 
 create table if not exists categories (
   id bigint generated always as identity primary key,
-  name text unique not null
+  name text not null,
+  parent_id bigint references categories(id) on delete cascade,
+  unique (name, parent_id)
 );
 
 create table if not exists brands (
@@ -48,6 +50,21 @@ create table if not exists product_variants (
   created_at timestamptz default now()
 );
 
+-- Hasta 4 fotos por producto y hasta 4 fotos por variante (color), ambas opcionales.
+create table if not exists product_images (
+  id bigint generated always as identity primary key,
+  product_id bigint not null references products(id) on delete cascade,
+  url text not null,
+  order_index int not null default 0
+);
+
+create table if not exists variant_images (
+  id bigint generated always as identity primary key,
+  variant_id bigint not null references product_variants(id) on delete cascade,
+  url text not null,
+  order_index int not null default 0
+);
+
 create table if not exists stock_movements (
   id bigint generated always as identity primary key,
   variant_id bigint not null references product_variants(id),
@@ -63,10 +80,12 @@ create table if not exists sales (
   user_id uuid references auth.users(id),
   subtotal numeric(10,2) not null,
   discount numeric(10,2) not null default 0,
+  discount_type text check (discount_type in ('PERCENT','AMOUNT')),
   total numeric(10,2) not null,
   customer_name text,
   customer_dni text,
   customer_phone text,
+  payment_method text check (payment_method in ('EFECTIVO','TARJETA','TRANSFERENCIA')),
   created_at timestamptz default now()
 );
 
@@ -90,6 +109,7 @@ create table if not exists customers (
   address text not null,
   city text not null,
   province text not null,
+  postal_code text,
   phone text not null,
   email text not null,
   created_at timestamptz default now()
@@ -154,6 +174,7 @@ create table if not exists store_settings (
   sender_city text,
   sender_province text,
   sender_phone text,
+  whatsapp_number text,
   updated_at timestamptz default now(),
   constraint single_row check (id = 1)
 );
@@ -162,6 +183,40 @@ insert into store_settings (id) values (1) on conflict (id) do nothing;
 alter table store_settings enable row level security;
 create policy "Logueados leen configuracion" on store_settings for select using (auth.role() = 'authenticated');
 create policy "Logueados editan configuracion" on store_settings for update using (auth.role() = 'authenticated');
+create policy "Publico lee whatsapp" on store_settings for select to anon using (true);
+
+-- =========================================================
+-- PÁGINA DE CONTACTO (editable, con fotos y HTML embebido de Street View)
+-- =========================================================
+create table if not exists store_contact (
+  id int primary key default 1,
+  business_name text default 'Over IT',
+  address text default 'Juana Manuela Gorriti 984',
+  instagram text default 'over.it.store',
+  phone text default '388 311 6194',
+  description text,
+  streetview_embed_html text,
+  updated_at timestamptz default now(),
+  constraint single_row_contact check (id = 1)
+);
+insert into store_contact (id) values (1) on conflict (id) do nothing;
+
+create table if not exists contact_images (
+  id bigint generated always as identity primary key,
+  url text not null,
+  order_index int not null default 0
+);
+
+alter table store_contact enable row level security;
+alter table contact_images enable row level security;
+create policy "Publico lee contacto" on store_contact for select to anon using (true);
+create policy "Publico lee contacto (logueados)" on store_contact for select to authenticated using (true);
+create policy "Logueados editan contacto" on store_contact for update to authenticated using (true);
+
+create policy "Publico lee fotos de contacto" on contact_images for select to anon using (true);
+create policy "Publico lee fotos de contacto (logueados)" on contact_images for select to authenticated using (true);
+create policy "Logueados crean fotos de contacto" on contact_images for insert to authenticated with check (true);
+create policy "Logueados borran fotos de contacto" on contact_images for delete to authenticated using (true);
 
 -- =========================================================
 -- BANNERS / CARRUSELES de la página principal (editables al loguearse)
@@ -203,7 +258,8 @@ grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on
   profiles, categories, brands, products, product_variants,
   stock_movements, sales, sale_items, customers, orders, order_items,
-  store_settings, banners
+  store_settings, banners, product_images, variant_images,
+  store_contact, contact_images
 to anon, authenticated;
 
 grant usage, select on all sequences in schema public to anon, authenticated;
@@ -220,6 +276,8 @@ alter table product_variants enable row level security;
 alter table stock_movements enable row level security;
 alter table sales enable row level security;
 alter table sale_items enable row level security;
+alter table product_images enable row level security;
+alter table variant_images enable row level security;
 
 create policy "Usuarios logueados pueden ver su perfil" on profiles
   for select using (auth.uid() = id);
@@ -248,6 +306,12 @@ create policy "Logueados crean ventas" on sales for insert with check (auth.role
 
 create policy "Logueados leen items de venta" on sale_items for select using (auth.role() = 'authenticated');
 create policy "Logueados crean items de venta" on sale_items for insert with check (auth.role() = 'authenticated');
+
+create policy "Publico ve fotos de productos" on product_images for select to anon using (true);
+create policy "Logueados gestionan fotos de productos" on product_images for all to authenticated using (true) with check (true);
+
+create policy "Publico ve fotos de variantes" on variant_images for select to anon using (true);
+create policy "Logueados gestionan fotos de variantes" on variant_images for all to authenticated using (true) with check (true);
 
 -- =========================================================
 -- Storage: espacio para fotos de productos

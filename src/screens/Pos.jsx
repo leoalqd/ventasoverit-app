@@ -88,11 +88,14 @@ export default function Pos() {
   const [customerName, setCustomerName] = useState('');
   const [customerDni, setCustomerDni] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [discountType, setDiscountType] = useState('PERCENT');
+  const [discountValue, setDiscountValue] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('EFECTIVO');
 
   useEffect(() => {
     fetchProducts().then((products) => {
       const variants = products.flatMap((p) =>
-        (p.variants || []).map((v) => ({ ...v, productName: p.name, price: Number(p.sale_price) }))
+        (p.variants || []).map((v) => ({ ...v, productName: p.name, price: Number(p.sale_price), productImage: p.images?.[0]?.url }))
       );
       setAllVariants(variants);
     });
@@ -135,13 +138,19 @@ export default function Pos() {
     if (cart.length === 0) return;
     setConfirming(true);
     try {
-      await confirmSale(cart, session?.user?.id, { name: customerName, dni: customerDni, phone: customerPhone });
+      await confirmSale(
+        cart,
+        session?.user?.id,
+        { name: customerName, dni: customerDni, phone: customerPhone },
+        { discountType, discountValue, paymentMethod }
+      );
       setCart([]);
       setCustomerName(''); setCustomerDni(''); setCustomerPhone('');
+      setDiscountValue('');
       setMessage('✅ Venta confirmada y stock actualizado.');
       fetchProducts().then((products) => {
         const variants = products.flatMap((p) =>
-          (p.variants || []).map((v) => ({ ...v, productName: p.name, price: Number(p.sale_price) }))
+          (p.variants || []).map((v) => ({ ...v, productName: p.name, price: Number(p.sale_price), productImage: p.images?.[0]?.url }))
         );
         setAllVariants(variants);
       });
@@ -177,12 +186,21 @@ export default function Pos() {
           <div className="grid sm:grid-cols-2 gap-3">
             {filtered.map((v) => (
               <button key={v.id} onClick={() => addToCart(v)}
-                className="text-left bg-[#17171A] border border-[#2A2A2E] rounded-lg p-4 hover:border-[#E8FF4D]">
-                <div className="text-[#F2F1ED] text-sm font-medium">{v.productName}</div>
-                <div className="text-xs text-[#8A8A8F] font-mono mb-2">{v.color} · {v.size}</div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-[#E8FF4D]">${v.price.toLocaleString('es-AR')}</span>
-                  <span className="text-[10px] font-mono text-[#8A8A8F] flex items-center gap-1"><ScanLine size={10} /> stock {v.stock}</span>
+                className="text-left bg-[#17171A] border border-[#2A2A2E] rounded-lg overflow-hidden hover:border-[#E8FF4D] flex gap-3">
+                <div className="w-16 h-16 bg-[#0B0B0C] shrink-0 flex items-center justify-center">
+                  {(v.images?.[0]?.url || v.productImage) ? (
+                    <img src={v.images?.[0]?.url || v.productImage} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ScanLine size={18} className="text-[#2A2A2E]" />
+                  )}
+                </div>
+                <div className="py-3 pr-3 flex-1 min-w-0">
+                  <div className="text-[#F2F1ED] text-sm font-medium truncate">{v.productName}</div>
+                  <div className="text-xs text-[#8A8A8F] font-mono mb-2">{v.color} · {v.size}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-[#E8FF4D]">${v.price.toLocaleString('es-AR')}</span>
+                    <span className="text-[10px] font-mono text-[#8A8A8F] flex items-center gap-1"><Tag size={10} /> stock {v.stock}</span>
+                  </div>
                 </div>
               </button>
             ))}
@@ -207,6 +225,30 @@ export default function Pos() {
             ))}
           </div>
           <div className="border-t border-[#2A2A2E] pt-3 mb-3 flex flex-col gap-2">
+            <span className="text-[11px] tracking-[0.2em] uppercase text-[#8A8A8F] font-mono">Descuento (opcional)</span>
+            <div className="flex gap-2">
+              <select value={discountType} onChange={(e) => setDiscountType(e.target.value)}
+                className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2 py-1.5 text-sm text-[#F2F1ED] outline-none">
+                <option value="PERCENT">%</option>
+                <option value="AMOUNT">$</option>
+              </select>
+              <input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder={discountType === 'PERCENT' ? 'Ej: 10' : 'Ej: 2000'}
+                className="flex-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] placeholder:text-[#4A4A4E]" />
+            </div>
+          </div>
+
+          <div className="mb-3 flex flex-col gap-2">
+            <span className="text-[11px] tracking-[0.2em] uppercase text-[#8A8A8F] font-mono">Forma de pago</span>
+            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
+              className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 text-sm text-[#F2F1ED] outline-none">
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="TARJETA">Tarjeta</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+            </select>
+          </div>
+
+          <div className="border-t border-[#2A2A2E] pt-3 mb-3 flex flex-col gap-2">
             <span className="text-[11px] tracking-[0.2em] uppercase text-[#8A8A8F] font-mono">Datos del cliente (opcional)</span>
             <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nombre"
               className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] placeholder:text-[#4A4A4E]" />
@@ -218,10 +260,28 @@ export default function Pos() {
             </div>
           </div>
           <div className="border-t border-[#2A2A2E] pt-3 flex flex-col gap-1.5 mb-4">
-            <div className="flex justify-between text-[#F2F1ED] font-medium">
-              <span>Total</span>
-              <span className="font-mono">${subtotal.toLocaleString('es-AR')}</span>
-            </div>
+            {(() => {
+              const discountAmount = discountType === 'PERCENT' ? subtotal * (Number(discountValue || 0) / 100) : Number(discountValue || 0);
+              const total = Math.max(0, subtotal - discountAmount);
+              return (
+                <>
+                  <div className="flex justify-between text-sm text-[#8A8A8F]">
+                    <span>Subtotal</span>
+                    <span className="font-mono">${subtotal.toLocaleString('es-AR')}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-[#FF6B57]">
+                      <span>Descuento</span>
+                      <span className="font-mono">-${discountAmount.toLocaleString('es-AR')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-[#F2F1ED] font-medium">
+                    <span>Total</span>
+                    <span className="font-mono">${total.toLocaleString('es-AR')}</span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
           <button onClick={handleConfirm} disabled={confirming || cart.length === 0}
             className="w-full bg-[#E8FF4D] text-[#0B0B0C] font-semibold text-sm rounded py-2.5 hover:bg-[#f2ff85] disabled:opacity-50">

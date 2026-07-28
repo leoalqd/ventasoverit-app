@@ -5,19 +5,24 @@ import { supabase } from './supabaseClient';
  * si se cargaron), sus items, descuenta stock de cada variante y deja el
  * movimiento de stock registrado.
  */
-export async function confirmSale(cart, userId, customerData = {}) {
+export async function confirmSale(cart, userId, customerData = {}, paymentInfo = {}) {
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const { discountType, discountValue = 0, paymentMethod } = paymentInfo;
+  const discountAmount = discountType === 'PERCENT' ? subtotal * (Number(discountValue) / 100) : Number(discountValue) || 0;
+  const total = Math.max(0, subtotal - discountAmount);
 
   const { data: sale, error: saleError } = await supabase
     .from('sales')
     .insert({
       user_id: userId,
       subtotal,
-      discount: 0,
-      total: subtotal,
+      discount: discountAmount,
+      discount_type: discountValue ? discountType : null,
+      total,
       customer_name: customerData.name || null,
       customer_dni: customerData.dni || null,
       customer_phone: customerData.phone || null,
+      payment_method: paymentMethod || null,
     })
     .select()
     .single();

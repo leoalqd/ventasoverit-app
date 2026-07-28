@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Truck, Receipt, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Truck, Receipt, Settings2, LogOut } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 
 export default function Sidebar({ screen, setScreen }) {
@@ -10,6 +10,7 @@ export default function Sidebar({ screen, setScreen }) {
     { key: 'pos', label: 'Punto de venta', icon: ShoppingCart },
     { key: 'sales', label: 'Ventas', icon: Receipt },
     { key: 'orders', label: 'Pedidos', icon: Truck },
+    { key: 'settings', label: 'Configuración', icon: Settings2 },
   ];
   return (
     <aside className="w-56 shrink-0 bg-[#0B0B0C] border-r border-[#2A2A2E] flex flex-col h-screen sticky top-0">

@@ -1,14 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ShoppingBag, X, Plus, Minus, Trash2, Package, User, Settings, LogOut } from 'lucide-react';
+import { ShoppingBag, X, Plus, Minus, Trash2, User, Settings, LogOut, Phone, Search } from 'lucide-react';
 import { fetchPublicCatalog, createOrder } from '../lib/storefront';
+import { fetchCategoryTree } from '../lib/categories';
 import { useAuth } from '../lib/AuthContext';
 import LoginModal from '../components/LoginModal';
 import BannerSection from '../components/BannerSection';
+import CategoryMenu from '../components/CategoryMenu';
+import ProductCard from '../components/ProductCard';
+import FloatingWhatsApp from '../components/FloatingWhatsApp';
 
 function CheckoutForm({ cart, onClose, onSuccess }) {
   const [form, setForm] = useState({
-    firstName: '', lastName: '', dni: '', address: '', city: '', province: '', phone: '', email: '',
+    firstName: '', lastName: '', dni: '', address: '', city: '', province: '', postalCode: '', phone: '', email: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +56,8 @@ function CheckoutForm({ cart, onClose, onSuccess }) {
             className="col-span-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
           <input required placeholder="Provincia" value={form.province} onChange={set('province')}
             className="col-span-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
+          <input required placeholder="Código Postal" value={form.postalCode} onChange={set('postalCode')}
+            className="col-span-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
           <input required placeholder="Teléfono" value={form.phone} onChange={set('phone')}
             className="col-span-1 bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D]" />
           <input required type="email" placeholder="Email" value={form.email} onChange={set('email')}
@@ -93,7 +99,8 @@ export default function Storefront() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryId, setCategoryId] = useState(null);
+  const [categoryTree, setCategoryTree] = useState([]);
   const [maxPrice, setMaxPrice] = useState('');
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -102,16 +109,19 @@ export default function Storefront() {
 
   useEffect(() => {
     fetchPublicCatalog().then(setProducts).catch(console.error).finally(() => setLoading(false));
+    fetchCategoryTree().then(setCategoryTree).catch(console.error);
   }, []);
 
-  const categories = useMemo(
-    () => [...new Set(products.map((p) => p.category?.name).filter(Boolean))],
-    [products]
-  );
+  const matchingCategoryIds = useMemo(() => {
+    if (!categoryId) return null;
+    const root = categoryTree.find((r) => r.id === categoryId);
+    if (root) return [root.id, ...root.subcategories.map((s) => s.id)];
+    return [categoryId];
+  }, [categoryId, categoryTree]);
 
   const filtered = products.filter((p) => {
     const matchesQuery = p.name.toLowerCase().includes(query.toLowerCase());
-    const matchesCategory = !categoryFilter || p.category?.name === categoryFilter;
+    const matchesCategory = !matchingCategoryIds || matchingCategoryIds.includes(p.category?.id);
     const matchesPrice = !maxPrice || Number(p.sale_price) <= Number(maxPrice);
     return matchesQuery && matchesCategory && matchesPrice;
   });
@@ -136,11 +146,17 @@ export default function Storefront() {
       {/* Barra de menú chica: logo, y a la derecha login (o panel/salir si ya está logueado) + carrito */}
       <header className="border-b border-[#2A2A2E] sticky top-0 bg-[#0B0B0C] z-30">
         <div className="max-w-6xl mx-auto px-6 py-2.5 flex items-center justify-between">
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-sm text-[#F2F1ED] leading-none">VENTAS</span>
-            <span className="font-display text-sm text-[#E8FF4D] leading-none">OVER IT</span>
+          <div className="flex items-center gap-3">
+            <CategoryMenu onSelect={setCategoryId} />
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-sm text-[#F2F1ED] leading-none">VENTAS</span>
+              <span className="font-display text-sm text-[#E8FF4D] leading-none">OVER IT</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link to="/contacto" className="flex items-center gap-1 text-xs text-[#8A8A8F] hover:text-[#F2F1ED]">
+              <Phone size={13} /> Contacto
+            </Link>
             {session ? (
               <>
                 <Link to="/panel" className="flex items-center gap-1 text-xs text-[#8A8A8F] hover:text-[#F2F1ED]">
@@ -181,14 +197,15 @@ export default function Storefront() {
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar productos..."
               className="bg-transparent outline-none text-sm text-[#F2F1ED] w-full placeholder:text-[#4A4A4E]" />
           </div>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none">
-            <option value="">Todas las categorías</option>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
           <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Precio máximo"
             className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none w-full sm:w-40 placeholder:text-[#4A4A4E]" />
         </div>
+
+        {categoryId && (
+          <button onClick={() => setCategoryId(null)} className="text-xs text-[#8A8A8F] hover:text-[#F2F1ED] mb-4 flex items-center gap-1">
+            <X size={12} /> Quitar filtro de categoría
+          </button>
+        )}
 
         {loading ? (
           <p className="text-[#8A8A8F] text-sm">Cargando catálogo...</p>
@@ -197,32 +214,7 @@ export default function Storefront() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((p) => (
-              <div key={p.id} className="bg-[#17171A] border border-[#2A2A2E] rounded-lg overflow-hidden">
-                <div className="aspect-square bg-[#0B0B0C] flex items-center justify-center">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Package size={32} className="text-[#2A2A2E]" />
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="text-[#F2F1ED] font-medium">{p.name}</div>
-                  <div className="text-xs text-[#8A8A8F] mb-3">{p.brand?.name}</div>
-                  <div className="font-mono text-[#E8FF4D] mb-3">${Number(p.sale_price).toLocaleString('es-AR')}</div>
-                  <div className="flex flex-col gap-1.5">
-                    {(p.variants || []).filter((v) => v.stock > 0).map((v) => (
-                      <button key={v.id} onClick={() => addToCart(p, v)}
-                        className="flex items-center justify-between text-xs bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 hover:border-[#E8FF4D]">
-                        <span className="text-[#F2F1ED]">{v.color} · {v.size}</span>
-                        <span className="text-[#8A8A8F] font-mono">stock {v.stock}</span>
-                      </button>
-                    ))}
-                    {(p.variants || []).every((v) => v.stock === 0) && (
-                      <span className="text-xs text-[#FF6B57]">Sin stock por ahora</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={p.id} product={p} onAddToCart={addToCart} />
             ))}
           </div>
         )}
@@ -281,6 +273,7 @@ export default function Storefront() {
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
 
       <BannerSection section="hero_bottom" aspect="aspect-[21/9]" />
+      <FloatingWhatsApp />
     </div>
   );
 }

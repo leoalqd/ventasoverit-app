@@ -134,7 +134,35 @@ La primera vez que toques "Etiqueta" en un pedido, te va a pedir **tus datos com
 
 ## Lo que todavía falta (próximas etapas)
 
-Reportes (PDF/Excel) del lado del panel, gestión de usuarios/permisos desde el panel (hoy se crean manualmente en Supabase), backups automáticos, filtros de color/talle en la tienda (hoy tiene búsqueda, categoría y precio máximo), y subida de **fotos de producto** desde el ABM (hoy la subida de imágenes con botón funciona para los banners de portada; la foto de cada producto se puede cargar pegando una URL directamente en la base si querés usarla mientras tanto). Decime cuándo seguimos y avanzamos con la próxima etapa.
+Reportes (PDF/Excel) del lado del panel, y gestión de usuarios/permisos desde el panel (hoy se crean manualmente en Supabase). Decime cuándo seguimos y avanzamos con la próxima etapa.
+
+---
+
+## Actualización grande: categorías/subcategorías, fotos múltiples, contacto, WhatsApp, descuentos
+
+Si ya tenías la app instalada antes de esta actualización, corré **una sola vez** el archivo `fix-actualizacion-grande.sql` en Supabase → SQL Editor → Run. Si es una instalación nueva, ya está todo incluido en `supabase-schema.sql` y no hace falta este paso.
+
+Esta actualización agrega:
+
+- **Categorías y subcategorías editables**, con creación rápida desde el mismo formulario de producto ("+ Nueva categoría" / "+ Nueva subcategoría")
+- **Descripción de producto** (campo de texto libre)
+- **Hasta 4 fotos por producto y hasta 4 fotos por variante/color** (Panel → Productos → Editar / Editar variante)
+- **En la tienda:** primero se elige el talle, y recién ahí se muestran los colores disponibles en stock para ese talle
+- **Menú desplegable de categorías** arriba a la izquierda de la tienda, con subcategorías
+- **Página de Contacto** (`/contacto`): nombre del negocio, dirección, Instagram, teléfono, fotos y un campo para pegar el HTML embebido de Google Street View — todo editable estando logueado
+- **Botón flotante de WhatsApp** en la tienda, que abre WhatsApp directo al número que cargues en Panel → Configuración
+- **Panel → Configuración** (nueva sección): acá cargás el número de WhatsApp y podés editar los datos de remitente cuando quieras (no solo la primera vez)
+- **Descuento en el POS** (en % o en $) y **forma de pago** (Efectivo / Tarjeta / Transferencia) al confirmar una venta — ambos quedan registrados en el log de Ventas
+- **Código Postal** agregado a los datos del cliente en la tienda y en la etiqueta de envío
+- **Etiquetas rediseñadas** con tu logo real: la de producto (50x25mm) y la de envío (100x150mm, con código de barras y QR del pedido)
+- **Pedidos:** ahora se ve el detalle de productos de cada pedido, y hay un botón "Editar" para modificar los datos del cliente y las cantidades
+- **Miniaturas de foto** en el listado del Punto de Venta
+
+### Cómo cargar el WhatsApp
+Panel → Configuración → completá "WhatsApp del negocio" con el número completo con código de país, sin espacios ni signos (ej: `5493883116194` para un +54 9 388 311-6194). Guardá, y el botón flotante ya va a apuntar ahí.
+
+### Cómo editar la página de Contacto
+Andá a `/contacto` (desde el link "Contacto" en la barra de arriba), tocá "Ingresar" si no estás logueado, y después el botón "Editar" arriba a la derecha. Para las fotos, usá "+ Agregar foto" debajo del título "Fotos". Para el mapa, pegá el `<iframe>` que te da Google Maps al compartir la ubicación (Compartir → Insertar un mapa → copiar HTML).
 
 ---
 
