@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Package } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProductCard({ product, onAddToCart }) {
   const variants = product.variants || [];
@@ -8,6 +8,7 @@ export default function ProductCard({ product, onAddToCart }) {
   const hasSizes = sizes.length > 0;
 
   const [selectedSize, setSelectedSize] = useState('');
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   const colorsForSize = useMemo(() => {
     if (!hasSizes) return inStock;
@@ -15,15 +16,33 @@ export default function ProductCard({ product, onAddToCart }) {
     return inStock.filter((v) => v.size === selectedSize);
   }, [inStock, hasSizes, selectedSize]);
 
-  const cover = product.images?.[0]?.url || product.image_url;
+  const photos = product.images?.length > 0 ? product.images : (product.image_url ? [{ url: product.image_url }] : []);
+  const cover = photos[photoIndex]?.url;
 
   return (
     <div className="bg-[#17171A] border border-[#2A2A2E] rounded-lg overflow-hidden">
-      <div className="aspect-square bg-[#0B0B0C] flex items-center justify-center">
+      <div className="relative aspect-square bg-[#0B0B0C] flex items-center justify-center group">
         {cover ? (
           <img src={cover} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           <Package size={32} className="text-[#2A2A2E]" />
+        )}
+        {photos.length > 1 && (
+          <>
+            <button onClick={() => setPhotoIndex((i) => (i - 1 + photos.length) % photos.length)}
+              className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronLeft size={14} />
+            </button>
+            <button onClick={() => setPhotoIndex((i) => (i + 1) % photos.length)}
+              className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronRight size={14} />
+            </button>
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+              {photos.map((_, i) => (
+                <span key={i} className={`w-1 h-1 rounded-full ${i === photoIndex ? 'bg-[#E8FF4D]' : 'bg-white/50'}`} />
+              ))}
+            </div>
+          </>
         )}
       </div>
       <div className="p-4">
