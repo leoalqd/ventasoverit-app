@@ -7,6 +7,7 @@
 -- Subcategorías (categorías con padre)
 alter table categories add column if not exists parent_id bigint references categories(id) on delete cascade;
 alter table categories drop constraint if exists categories_name_key;
+alter table categories drop constraint if exists categories_name_parent_key;
 alter table categories add constraint categories_name_parent_key unique (name, parent_id);
 
 -- Fotos múltiples
