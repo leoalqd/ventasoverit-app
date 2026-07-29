@@ -102,6 +102,8 @@ export default function Storefront() {
   const [categoryId, setCategoryId] = useState(null);
   const [categoryTree, setCategoryTree] = useState([]);
   const [maxPrice, setMaxPrice] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('');
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -123,8 +125,28 @@ export default function Storefront() {
     const matchesQuery = p.name.toLowerCase().includes(query.toLowerCase());
     const matchesCategory = !matchingCategoryIds || matchingCategoryIds.includes(p.category?.id);
     const matchesPrice = !maxPrice || Number(p.sale_price) <= Number(maxPrice);
-    return matchesQuery && matchesCategory && matchesPrice;
+    const matchesSize = !sizeFilter || (p.variants || []).some((v) => v.size === sizeFilter && v.stock > 0);
+    return matchesQuery && matchesCategory && matchesPrice && matchesSize;
   });
+
+  // Talles disponibles según lo que se está mostrando (categoría/búsqueda ya aplicadas),
+  // para que el filtro de talle solo muestre opciones que tengan sentido (ropa vs calzado).
+  const availableSizes = useMemo(() => {
+    const base = products.filter((p) => {
+      const matchesQuery = p.name.toLowerCase().includes(query.toLowerCase());
+      const matchesCategory = !matchingCategoryIds || matchingCategoryIds.includes(p.category?.id);
+      return matchesQuery && matchesCategory;
+    });
+    const sizes = base.flatMap((p) => (p.variants || []).filter((v) => v.stock > 0).map((v) => v.size)).filter(Boolean);
+    return [...new Set(sizes)].sort();
+  }, [products, query, matchingCategoryIds]);
+
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    if (sortOrder === 'price_asc') list.sort((a, b) => Number(a.sale_price) - Number(b.sale_price));
+    if (sortOrder === 'price_desc') list.sort((a, b) => Number(b.sale_price) - Number(a.sale_price));
+    return list;
+  }, [filtered, sortOrder]);
 
   const addToCart = (product, variant) => {
     setCart((prev) => {
@@ -199,6 +221,19 @@ export default function Storefront() {
           </div>
           <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Precio máximo"
             className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none w-full sm:w-40 placeholder:text-[#4A4A4E]" />
+          {availableSizes.length > 0 && (
+            <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}
+              className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none">
+              <option value="">Todos los talles</option>
+              {availableSizes.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}
+            className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none">
+            <option value="">Ordenar por</option>
+            <option value="price_asc">Precio: menor a mayor</option>
+            <option value="price_desc">Precio: mayor a menor</option>
+          </select>
         </div>
 
         {categoryId && (
@@ -209,11 +244,11 @@ export default function Storefront() {
 
         {loading ? (
           <p className="text-[#8A8A8F] text-sm">Cargando catálogo...</p>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <p className="text-[#8A8A8F] text-sm">No encontramos productos con esos filtros.</p>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((p) => (
+            {sorted.map((p) => (
               <ProductCard key={p.id} product={p} onAddToCart={addToCart} />
             ))}
           </div>
