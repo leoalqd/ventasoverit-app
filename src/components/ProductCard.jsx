@@ -74,7 +74,7 @@ export default function ProductCard({ product, onAddToCart }) {
                     <button key={v.id} onClick={() => onAddToCart(product, v)}
                       className="flex items-center justify-between text-xs bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 hover:border-[#E8FF4D]">
                       <span className="text-[#F2F1ED]">{v.color || 'Único'}</span>
-                      <span className="text-[#8A8A8F] font-mono">stock {v.stock}</span>
+                      <span className="text-[#7CFF9E] font-medium">Disponible</span>
                     </button>
                   ))}
                 </div>
@@ -87,7 +87,7 @@ export default function ProductCard({ product, onAddToCart }) {
               <button key={v.id} onClick={() => onAddToCart(product, v)}
                 className="flex items-center justify-between text-xs bg-[#0B0B0C] border border-[#2A2A2E] rounded px-2.5 py-1.5 hover:border-[#E8FF4D]">
                 <span className="text-[#F2F1ED]">{v.color || product.name}</span>
-                <span className="text-[#8A8A8F] font-mono">stock {v.stock}</span>
+                <span className="text-[#7CFF9E] font-medium">Disponible</span>
               </button>
             ))}
           </div>
