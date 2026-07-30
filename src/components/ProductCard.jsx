@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProductCard({ product, onAddToCart }) {
@@ -21,12 +22,14 @@ export default function ProductCard({ product, onAddToCart }) {
 
   return (
     <div className="bg-[#17171A] border border-[#2A2A2E] rounded-lg overflow-hidden">
-      <div className="relative aspect-square bg-[#0B0B0C] flex items-center justify-center group">
-        {cover ? (
-          <img src={cover} alt={product.name} className="w-full h-full object-cover" />
-        ) : (
-          <Package size={32} className="text-[#2A2A2E]" />
-        )}
+      <div className="relative aspect-square bg-[#0B0B0C] flex items-center justify-center group overflow-hidden">
+        <Link to={`/producto/${product.id}`} className="absolute inset-0">
+          {cover ? (
+            <img src={cover} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><Package size={32} className="text-[#2A2A2E]" /></div>
+          )}
+        </Link>
         {photos.length > 1 && (
           <>
             <button onClick={() => setPhotoIndex((i) => (i - 1 + photos.length) % photos.length)}
@@ -46,7 +49,9 @@ export default function ProductCard({ product, onAddToCart }) {
         )}
       </div>
       <div className="p-4">
-        <div className="text-[#F2F1ED] font-medium">{product.name}</div>
+        <div className="text-[#F2F1ED] font-medium">
+          <Link to={`/producto/${product.id}`} className="hover:text-[#E8FF4D]">{product.name}</Link>
+        </div>
         {product.brand?.name && <div className="text-xs text-[#8A8A8F] mb-1">{product.brand.name}</div>}
         {product.description && <p className="text-xs text-[#8A8A8F] mb-2 line-clamp-2">{product.description}</p>}
         <div className="font-mono text-[#E8FF4D] mb-3">${Number(product.sale_price).toLocaleString('es-AR')}</div>

@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 export async function fetchPublicCatalog() {
   const { data, error } = await supabase
     .from('products')
-    .select('*, category:categories(id, name, parent_id), brand:brands(name), variants:product_variants(*, images:variant_images(*)), images:product_images(*)')
+    .select('*, category:categories(id, name, parent_id), brand:brands(name), variants:product_variants(*, images:variant_images(*)), images:product_images(*), featured')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false });
   if (error) throw error;

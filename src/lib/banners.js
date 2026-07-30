@@ -31,6 +31,11 @@ export async function createBanner(section, imageUrl, linkUrl = '') {
   if (error) throw error;
 }
 
+export async function updateBannerLink(id, linkUrl) {
+  const { error } = await supabase.from('banners').update({ link_url: linkUrl || null }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteBanner(id) {
   const { error } = await supabase.from('banners').delete().eq('id', id);
   if (error) throw error;

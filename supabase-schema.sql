@@ -35,6 +35,7 @@ create table if not exists products (
   brand_id bigint references brands(id),
   image_url text,
   status text not null default 'ACTIVE' check (status in ('ACTIVE','INACTIVE')),
+  featured boolean not null default true,
   created_at timestamptz default now()
 );
 

@@ -106,6 +106,7 @@ function EditProductModal({ product, onClose, onSaved }) {
   const [purchasePrice, setPurchasePrice] = useState(product.purchase_price);
   const [salePrice, setSalePrice] = useState(product.sale_price);
   const [categoryId, setCategoryId] = useState(product.category?.id || null);
+  const [featured, setFeatured] = useState(product.featured !== false);
   const [images, setImages] = useState(product.images || []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -131,6 +132,7 @@ function EditProductModal({ product, onClose, onSaved }) {
         purchasePrice: Number(purchasePrice),
         salePrice: Number(salePrice),
         categoryId,
+        featured,
       });
       onSaved();
       onClose();
@@ -167,6 +169,10 @@ function EditProductModal({ product, onClose, onSaved }) {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción (opcional)" rows={2}
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] resize-none" />
           <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
+          <label className="flex items-center gap-2 text-sm text-[#F2F1ED]">
+            <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="accent-[#E8FF4D]" />
+            Mostrar en la página principal
+          </label>
           <input required value={internalCode} onChange={(e) => setInternalCode(e.target.value)} placeholder="Código interno"
             className="bg-[#0B0B0C] border border-[#2A2A2E] rounded px-3 py-2 text-sm text-[#F2F1ED] outline-none focus:border-[#E8FF4D] font-mono" />
           <div className="flex gap-3">

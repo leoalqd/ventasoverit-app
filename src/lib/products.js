@@ -29,6 +29,16 @@ export async function fetchProducts(search = '') {
   return data;
 }
 
+export async function fetchProductById(id) {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, category:categories(id, name, parent_id), brand:brands(name), variants:product_variants(*, images:variant_images(*)), images:product_images(*)')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createProduct({ name, description, internalCode, purchasePrice, salePrice, categoryId, variants }) {
   const { data: product, error } = await supabase
     .from('products')
@@ -78,7 +88,7 @@ export async function addVariant(productId, internalCode, { color, size, stock =
   return data;
 }
 
-export async function updateProduct(productId, { name, description, internalCode, purchasePrice, salePrice, categoryId }) {
+export async function updateProduct(productId, { name, description, internalCode, purchasePrice, salePrice, categoryId, featured }) {
   const { error } = await supabase
     .from('products')
     .update({
@@ -88,6 +98,7 @@ export async function updateProduct(productId, { name, description, internalCode
       purchase_price: purchasePrice,
       sale_price: salePrice,
       category_id: categoryId || null,
+      featured,
     })
     .eq('id', productId);
   if (error) throw error;

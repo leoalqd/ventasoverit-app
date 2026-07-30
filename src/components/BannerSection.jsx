@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
-import { fetchBanners, uploadBannerImage, createBanner, deleteBanner } from '../lib/banners';
+import { Plus, X, ChevronLeft, ChevronRight, ImageIcon, Link2 } from 'lucide-react';
+import { fetchBanners, uploadBannerImage, createBanner, deleteBanner, updateBannerLink } from '../lib/banners';
 import { useAuth } from '../lib/AuthContext';
 
 /**
@@ -46,6 +46,13 @@ export default function BannerSection({ section, aspect = 'aspect-[21/9]' }) {
     load();
   };
 
+  const handleEditLink = async (banner) => {
+    const url = prompt('¿A qué URL apunta esta imagen al hacer clic? (dejar vacío para quitarlo)', banner.link_url || '');
+    if (url === null) return;
+    await updateBannerLink(banner.id, url.trim());
+    load();
+  };
+
   const isEditing = !!session;
 
   if (banners.length === 0 && !isEditing) return null;
@@ -62,9 +69,12 @@ export default function BannerSection({ section, aspect = 'aspect-[21/9]' }) {
           <a
             key={b.id}
             href={b.link_url || undefined}
-            className={`absolute inset-0 transition-opacity duration-500 ${i === index ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            target={b.link_url ? '_blank' : undefined}
+            rel={b.link_url ? 'noopener noreferrer' : undefined}
+            className={`absolute inset-0 overflow-hidden transition-opacity duration-500 ${i === index ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${b.link_url ? 'cursor-pointer' : 'cursor-default'}`}
+            onClick={(e) => { if (!b.link_url) e.preventDefault(); }}
           >
-            <img src={b.image_url} alt="" className="w-full h-full object-cover" />
+            <img src={b.image_url} alt="" className="w-full h-full object-cover transition-transform duration-500 ease-out hover:scale-105 active:scale-95" />
           </a>
         ))
       )}
@@ -90,10 +100,16 @@ export default function BannerSection({ section, aspect = 'aspect-[21/9]' }) {
       {isEditing && (
         <div className="absolute top-2 right-2 flex items-center gap-2">
           {banners[index] && (
-            <button onClick={() => handleDelete(banners[index].id)}
-              className="bg-black/70 text-[#FF6B57] rounded p-1.5" title="Eliminar esta imagen">
-              <X size={14} />
-            </button>
+            <>
+              <button onClick={() => handleEditLink(banners[index])}
+                className="bg-black/70 text-[#F2F1ED] rounded p-1.5" title="Editar link de destino">
+                <Link2 size={14} />
+              </button>
+              <button onClick={() => handleDelete(banners[index].id)}
+                className="bg-black/70 text-[#FF6B57] rounded p-1.5" title="Eliminar esta imagen">
+                <X size={14} />
+              </button>
+            </>
           )}
           <label className="bg-[#E8FF4D] text-[#0B0B0C] rounded p-1.5 cursor-pointer flex items-center gap-1 text-xs font-semibold px-2">
             <Plus size={14} /> {uploading ? 'Subiendo...' : 'Imagen'}
