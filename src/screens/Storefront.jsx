@@ -63,6 +63,14 @@ export default function Storefront() {
     return list;
   }, [filtered, sortOrder]);
 
+  // Lista plana de categorías (raíz + subcategorías con sangría) para el select de filtros.
+  const flatCategories = useMemo(() => {
+    return categoryTree.flatMap((r) => [
+      { id: r.id, label: r.name },
+      ...r.subcategories.map((s) => ({ id: s.id, label: `— ${s.name}` })),
+    ]);
+  }, [categoryTree]);
+
   return (
     <div className="min-h-screen bg-[#0B0B0C]">
       <StoreHeader onSelectCategory={setCategoryId} />
@@ -83,6 +91,13 @@ export default function Storefront() {
           </div>
           <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Precio máximo"
             className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none w-full sm:w-40 placeholder:text-[#4A4A4E]" />
+          {flatCategories.length > 0 && (
+            <select value={categoryId || ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+              className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none">
+              <option value="">Todas las categorías</option>
+              {flatCategories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          )}
           {availableSizes.length > 0 && (
             <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}
               className="bg-[#17171A] border border-[#2A2A2E] rounded px-3 py-2.5 text-sm text-[#F2F1ED] outline-none">
@@ -109,7 +124,7 @@ export default function Storefront() {
         ) : sorted.length === 0 ? (
           <p className="text-[#8A8A8F] text-sm">No encontramos productos con esos filtros.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-4 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
             {sorted.map((p) => (
               <ProductCard key={p.id} product={p} onAddToCart={addToCart} />
             ))}
